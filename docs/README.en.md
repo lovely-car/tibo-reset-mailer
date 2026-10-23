@@ -6,6 +6,14 @@ This is a community Beta, not an official OpenAI or X service. It monitors publi
 
 ## Quick start
 
+### Let your own Codex configure personal reminders
+
+Send your Codex the repository URL, your recipient address and explicit authorization to send a first summary and new alerts every hour. Ask it to read [CODEX_SETUP.md](../CODEX_SETUP.md). Codex checks the local runtime, existing reminders, connected-mail tools and scheduler, installs the package, verifies the public source and records actual delivery receipts. With a working mail connector, SMTP and a separate model API key are unnecessary. This is not a public subscription website.
+
+Host capabilities vary: a CLI/cloud session does not automatically have mail tools or a scheduler. Local scheduled checks require the computer online and the desktop host running. The guide requires reporting unfinished steps accurately.
+
+### Manual standalone installation
+
 Use Python 3.11+ in a virtual environment, then:
 
 ```bash

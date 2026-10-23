@@ -30,6 +30,8 @@ def main(argv=None):
     parser.add_argument("--version", action="version", version=__version__)
     parser.add_argument("--env-file", default=".env", help="配置文件路径，默认 .env")
     sub = parser.add_subparsers(dest="command", required=True)
+    from .agent import add_arguments
+    add_arguments(sub)
     once = sub.add_parser("check", help="检查一次；正式运行将发送符合条件的邮件")
     once.add_argument("--dry-run", action="store_true", help="联网检查和生成内容，不发信、不标记已读")
     sub.add_parser("run", help="持续运行，默认每小时检查")
@@ -47,6 +49,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     try:
+        if args.command == "agent":
+            from .agent import run
+            output(run(args))
+            return 0
         if args.command == "preview":
             path = Path(args.output)
             path.parent.mkdir(parents=True, exist_ok=True)

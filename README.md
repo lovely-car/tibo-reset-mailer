@@ -4,11 +4,31 @@
 
 每小时读取 [@thsottiaux 的 X 官方公开页面](https://x.com/thsottiaux)，筛选明确的 Codex 额度重置消息，邮件先列北京时间，再列美国洛杉矶时间，保留原始表述与原帖链接。同一版本只提醒一次。
 
-**v0.1.0-beta · 自部署工具 · Python 3.11+ · MIT**
+**v0.2.0-beta · Codex 辅助配置 / 独立运行 · Python 3.11+ · MIT**
 
 [English](docs/README.en.md) · [邮件示例](docs/email-preview.html) · [故障排查](docs/troubleshooting.md) · [设计与边界](docs/design.md)
 
 > GitHub 提供源码和下载。提醒程序运行在你自己的电脑或服务器上；本地关机或断网时无法检查。仓库不是公共邮箱订阅服务。
+
+## 最省手工操作：把这段话发给自己的 Codex
+
+将下面的收件邮箱替换成自己的地址，整段复制给支持本地执行的 Codex：
+
+```text
+请帮我部署这个个人提醒项目：https://github.com/lovely-car/tibo-reset-mailer
+先阅读仓库 AGENTS.md 和 CODEX_SETUP.md，替我完成环境检查、安装、来源验证和每小时提醒配置。
+我的收件邮箱是：在这里填自己的邮箱。
+优先使用你已连接的邮箱发送，由你判断公告；需要连接邮箱时告诉我具体操作。
+我授权向上述邮箱发送一次首次汇总，并在发现新的明确 Codex 重置公告时自动发邮件，无需逐次询问。
+邮件同时显示北京时间、美国洛杉矶时间、中文摘要和原帖链接；没有新公告时保持安静。
+已有相同提醒时优先复用，避免重复安装和重复发信。完成后核验邮件回执与定时任务，并说明运行要求。
+```
+
+用户主要需要提供**收件邮箱**，在提示时连接自己的发信邮箱。安装、验证和定时配置交给 Codex。具备可用邮箱连接时无需手工填 SMTP，也不用额外配置模型 API Key。
+
+这条路线需要当前 Codex 环境提供本地执行、可发信的连接和可用定时任务；**不是任意 Codex 环境都天然支持这些能力**。Codex 会先检查，缺少时明确说明未完成的部分。本地定时任务仍需要电脑开机联网、宿主保持运行，见 [官方说明](https://learn.chatgpt.com/docs/automations?surface=app)。无需购买服务器来配置个人提醒。
+
+开发者入口：[CODEX_SETUP.md](CODEX_SETUP.md)；每轮执行：[CODEX_MONITOR.md](docs/CODEX_MONITOR.md)。下面保留原来的手工 SMTP 安装方式。
 
 ## 邮件会是什么样
 
@@ -157,7 +177,7 @@ python -m tibo_mailer preview --output docs/email-preview.html
 
 这是社区项目，与 OpenAI、X、Tibo 没有官方关联。公开公告不保证你的个人账户额度已到账。X 页面结构或访问条件可能变化，详见 [故障排查](docs/troubleshooting.md)。
 
-设计灵感来自 [Tibo Reset Reminder Skill](https://github.com/orange90/tibo_reset_reminder_skill)。本仓库的运行时与状态存储独立实现，不导入该技能，不包含其源码，也不依赖 Codex、公共 Feed 或 Gmail 连接器。
+设计灵感来自 [Tibo Reset Reminder Skill](https://github.com/orange90/tibo_reset_reminder_skill)。本仓库的运行时与状态存储独立实现，不导入该技能，不包含其源码。独立 SMTP 路线不依赖 Codex、公共 Feed 或 Gmail 连接器；Codex 辅助路线复用宿主的判断、邮箱连接和定时能力。
 
 ## 许可证
 

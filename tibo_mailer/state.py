@@ -54,6 +54,7 @@ class State:
             id TEXT PRIMARY KEY, status TEXT NOT NULL, payload TEXT NOT NULL,
             versions TEXT NOT NULL, onboarding INTEGER NOT NULL, at TEXT NOT NULL,
             attempts INTEGER NOT NULL DEFAULT 0, error TEXT NOT NULL DEFAULT '');
+          CREATE TABLE IF NOT EXISTS receipts (delivery_id TEXT PRIMARY KEY, provider_id TEXT NOT NULL);
         """)
         # A crash during SMTP can leave the outcome ambiguous. Never auto-resend.
         with self.db:
@@ -100,10 +101,26 @@ class State:
         with self.db:
             self.db.execute("INSERT OR REPLACE INTO meta VALUES ('health',?)", (json.dumps(value, ensure_ascii=False),))
 
+    def confirm_external(self, delivery_id, receipt):
+        with self.db:
+            row = self.db.execute("SELECT status,onboarding FROM deliveries WHERE id=?", (delivery_id,)).fetchone()
+            previous = self.db.execute("SELECT provider_id FROM receipts WHERE delivery_id=?", (delivery_id,)).fetchone()
+            if row is None or row["status"] not in {"sending", "unknown", "sent"}:
+                raise ValueError("Begin delivery before confirming a successful send")
+            if row["status"] == "sent" and (not previous or previous[0] != receipt):
+                raise ValueError("A different receipt is already recorded")
+            self.db.execute("INSERT OR REPLACE INTO receipts VALUES (?,?)", (delivery_id, receipt))
+            self.db.execute("UPDATE deliveries SET status='sent',error='' WHERE id=?", (delivery_id,))
+            if row["onboarding"]:
+                self.db.execute("INSERT OR REPLACE INTO meta VALUES ('initialized',?)", (utcnow().isoformat(),))
+
     def status(self):
         health = self.db.execute("SELECT value FROM meta WHERE key='health'").fetchone()
         return {"initialized": self.initialized,
                 "processed_versions": self.db.execute("SELECT COUNT(*) FROM seen").fetchone()[0],
                 "deliveries": [{"id": d["id"], "status": d["status"], "message_id": d["payload"]["message_id"],
-                                "attempts": d["attempts"], "error": d["error"]} for d in self.deliveries()],
+                                "attempts": d["attempts"], "error": d["error"],
+                                "receipt_id": self.db.execute("SELECT provider_id FROM receipts WHERE delivery_id=?", (d["id"],)).fetchone()[0]
+                                if self.db.execute("SELECT 1 FROM receipts WHERE delivery_id=?", (d["id"],)).fetchone() else None}
+                               for d in self.deliveries()],
                 "health": json.loads(health[0]) if health else None}

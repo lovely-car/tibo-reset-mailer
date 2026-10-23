@@ -7,7 +7,7 @@ __pycache__/
 *.egg-info/
 build/
 dist/
-.tibo-mailer/
+.tibo-mailer*/
 data/
 *.sqlite3*
 *.db*
