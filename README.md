@@ -1,4 +1,4 @@
-# Tibo Reset Mailer
+# Tibo Codex 额度重置监测与邮件提醒
 
 **Tibo 发 Codex 重置公告，你收一封看得懂时间的中文邮件。**
 
