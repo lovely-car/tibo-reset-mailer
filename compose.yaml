@@ -1,0 +1,11 @@
+services:
+  mailer:
+    build: .
+    env_file: .env
+    environment:
+      TIBO_DATA_DIR: /data
+    volumes:
+      - mailer-data:/data
+    restart: unless-stopped
+volumes:
+  mailer-data:

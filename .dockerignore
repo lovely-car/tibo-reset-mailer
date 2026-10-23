@@ -1,0 +1,11 @@
+.git
+.env
+.env.*
+.venv
+.tibo-mailer
+data
+tests
+dist
+build
+__pycache__
+*.egg-info

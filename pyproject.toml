@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tibo-reset-mailer"
+version = "0.1.0b1"
+description = "Self-hosted Chinese email alerts for Tibo's concrete Codex reset announcements"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = ["tzdata>=2024.1; sys_platform == 'win32'"]
+
+[project.scripts]
+tibo-mailer = "tibo_mailer.__main__:main"
+
+[tool.setuptools.packages.find]
+include = ["tibo_mailer*"]
