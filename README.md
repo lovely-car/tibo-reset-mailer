@@ -1,42 +1,37 @@
 # Tibo Codex 额度重置监测与邮件提醒
 
-**Tibo 发 Codex 重置公告，你收一封看得懂时间的中文邮件。**
+**Tibo 发 Codex 重置公告，你收一封写清北京时间和美国时间的中文邮件。**
 
-核心任务：**每小时主动访问 Tibo 本人的 X，查有没有新的 Codex 额度重置公告；发现新公告才提醒。** 安装和邮箱配置只是启用监测的步骤。每轮必须真实读取来源、判断公告并对比去重记录，不能只生成邮件或显示“已配置”。
+把项目链接和收件邮箱交给你自己的 Codex，由它完成安装、实时来源检查与每小时提醒配置。每小时主动检查 [Tibo（@thsottiaux）](https://x.com/thsottiaux) 本人的帖子及相关本人回复，有新的明确 Codex 额度重置消息才发邮件；没有新公告时保持安静。
 
-每小时读取 [@thsottiaux 的 X 官方公开页面](https://x.com/thsottiaux)，筛选明确的 Codex 额度重置消息，邮件先列北京时间，再列美国洛杉矶时间，保留原始表述与原帖链接。同一版本只提醒一次。
+**v0.2.0-beta.1 · 推荐使用自己的 Codex 配置 · MIT**
 
-**v0.2.0-beta · Codex 辅助配置 / 独立运行 · Python 3.11+ · MIT**
+[English](docs/README.en.md) · [实测记录](docs/VERIFICATION.md) · [故障排查](docs/troubleshooting.md) · [高级手动部署](docs/ADVANCED_SETUP.md)
 
-[English](docs/README.en.md) · [邮件示例](docs/email-preview.html) · [故障排查](docs/troubleshooting.md) · [设计与边界](docs/design.md)
+## 怎么用
 
-> GitHub 提供源码和下载。提醒程序运行在你自己的电脑或服务器上；本地关机或断网时无法检查。仓库不是公共邮箱订阅服务。
-
-## 最省手工操作：把这段话发给自己的 Codex
-
-将下面的收件邮箱替换成自己的地址，整段复制给支持本地执行的 Codex：
+1. 在支持本地执行的 Codex 中，发送下面这段话，并替换收件邮箱。
+2. 如果 Codex 提示连接发信邮箱或完成本地运行授权，按提示操作。
+3. 让 Codex 核对真实来源、首次汇总的发信回执和定时任务，再确认自己的邮箱是否收到。
 
 ```text
-请帮我部署这个个人提醒项目：https://github.com/lovely-car/tibo-reset-mailer
-核心任务是每小时实际访问 https://x.com/thsottiaux，查 Tibo 本人有没有发布新的 Codex 额度重置公告，包括相关本人补充回复。
-先阅读仓库 AGENTS.md 和 CODEX_SETUP.md，替我完成环境检查、安装、来源验证和每小时提醒配置。
+请帮我配置这个个人提醒项目：https://github.com/lovely-car/tibo-reset-mailer
 我的收件邮箱是：在这里填自己的邮箱。
-优先使用你已连接的邮箱发送，由你判断公告；需要连接邮箱时告诉我具体操作。
-我授权向上述邮箱发送一次首次汇总，并在发现新的明确 Codex 重置公告时自动发邮件，无需逐次询问。
-邮件同时显示北京时间、美国洛杉矶时间、中文摘要和原帖链接；没有新公告时保持安静。
-先真实读取 X 并与去重记录比较，再判断是否提醒；读取失败要记录失败，不能当作没有公告，也不能只完成邮箱设置就说监测已完成。
-已有相同提醒时优先复用，避免重复安装和重复发信。完成后核验邮件回执与定时任务，并说明运行要求。
+核心任务：每小时实际查看 Tibo（@thsottiaux）的 X 本人帖子及相关本人回复，查找新的明确 Codex 额度重置公告，有新公告才发中文邮件。
+先阅读仓库 AGENTS.md 和 CODEX_SETUP.md，替我完成安装、实时来源检查和每小时定时任务配置；已有相同提醒时优先复用。
+优先使用你已连接的邮箱，由你判断公告。需要我连接邮箱或补充授权时，告诉我具体操作；缺少发信或调度能力时说明待完成部分。
+我授权向上述邮箱发送一次首次汇总，以及此后符合条件的新重置公告，并创建或复用每小时检查任务，无需逐次询问。
+邮件包含北京时间、美国洛杉矶/太平洋时间、中文摘要、原始时间表述和原帖链接；保留截止时间与时区歧义，同一帖子版本不重复发送。
+读取失败要记录失败，不能当作没有公告。完成后告诉我实际来源检查结果、邮件回执、定时任务状态和运行条件。
 ```
 
-用户主要需要提供**收件邮箱**，在提示时连接自己的发信邮箱。安装、验证和定时配置交给 Codex。具备可用邮箱连接时无需手工填 SMTP，也不用额外配置模型 API Key。
+用户主要提供收件邮箱，必要时连接自己的发信邮箱。安装、公告判断、去重和定时配置交给 Codex。具备可用邮箱连接时，无需手工填写 SMTP 或额外配置模型 API Key。
 
-这条路线需要当前 Codex 环境提供本地执行、可发信的连接和可用定时任务；**不是任意 Codex 环境都天然支持这些能力**。Codex 会先检查，缺少时明确说明未完成的部分。本地定时任务仍需要电脑开机联网、宿主保持运行，见 [官方说明](https://learn.chatgpt.com/docs/automations?surface=app)。无需购买服务器来配置个人提醒。
+> **运行条件：**Codex 环境需要能够联网运行本地程序、发送邮件并创建定时任务。本地提醒需要电脑开机联网、桌面宿主保持运行；具体能力由 Codex 在配置时核实。
 
-开发者入口：[CODEX_SETUP.md](CODEX_SETUP.md)；每轮执行：[CODEX_MONITOR.md](docs/CODEX_MONITOR.md)。下面保留原来的手工 SMTP 安装方式。
+## 邮件长什么样
 
-## 邮件会是什么样
-
-![双时区邮件格式演示，非当前公告](docs/email-preview.png)
+![历史公告的双时区邮件格式示例，非当前重置通知](docs/email-preview.png)
 
 ```text
 重置北京时间：预计 2026-10-24 02:00（UTC+8）之前
@@ -46,143 +41,38 @@
 按原文 PST 字面偏移换算。若作者实际泛指当地 10:00 PDT，
 则北京时间为 10 月 24 日 01:00 前；这一解释未经确认。
 
-来源：X 原帖与 Tibo 本人补充链接
+来源：Tibo 的 X 原帖及本人补充链接
 ```
 
-这是历史公告的**格式演示**，不是当前重置通知。`before` 表示截止时间，不能理解为准点重置。原帖未公布有效时刻时，两行会显示“具体重置时刻未公布”。
+这是历史公告的格式演示。`before` 表示截止时间；原帖未公布具体重置时刻时，邮件会保留原文并写明“具体重置时刻未公布”。
 
-## 五步启动
+## 已经验证到哪一步
 
-先下载并解压仓库源码，在项目目录打开终端。也可以使用 `git clone` 下载。
+2026-10-24，在一台 **Windows Codex 桌面环境 + Python 3.12 + 已连接 Gmail** 上，完成了从 GitHub 全新安装、读取真实 Tibo 帖子、生成双时区邮件、QQ 邮箱实际收件，以及一次自动定时唤醒后的再次检查。第二轮没有新帖子版本，没有重复生成投递或增加发信次数。
 
-**1. 安装**
+收件人已确认收到且内容正常。验证使用实时读到的历史预告，明确标注为项目流程验证；没有把历史内容当作新公告。完整范围见[实测记录](docs/VERIFICATION.md)。
 
-```bash
-python -m venv .venv
-# Windows PowerShell:
-.\.venv\Scripts\Activate.ps1
-# macOS / Linux:
-# source .venv/bin/activate
-python -m pip install -e .
-```
+**项目继续保持 Beta。** 这次验证覆盖一台设备和一次自动唤醒，尚未证明长期运行或其他用户环境都稳定可用。
 
-**2. 填自己的邮箱配置**
+## 使用边界
 
-```bash
-python -m tibo_mailer setup
-```
+- X 公开匿名页面可能无法访问，或只能提供部分历史；来源失败需要记录并等待恢复，不能解释成“没有公告”。
+- 只提醒 Tibo 本人明确涉及 Codex 额度、并给出具体时间安排或完成确认的消息。模糊的 `soon`、其他产品、API 限流和付费 credits 不提醒。
+- 只监测公开公告，不查询你的个人账户额度；实际额度以产品内显示为准。
+- 首次汇总只覆盖当时可核验的记录；睡眠、断网或关机会延迟检查，不能承诺补回所有遗漏公告。
+- 邮箱、授权码、密钥和私有状态保存在使用者自己的环境中，不应提交 GitHub。不要把其他用户的去重数据直接复制成自己的状态。
 
-根据提示输入收件邮箱、发信邮箱、SMTP 主机和邮箱服务商提供的授权码 / 应用密码。默认使用 465 端口的 TLS 连接。需要 587 端口时，在生成的 `.env` 中改成 `SMTP_PORT=587`、`SMTP_SECURITY=starttls`。收件邮箱可以和发信邮箱不同。
+## 进一步阅读
 
-也可以复制 `.env.example` 为 `.env` 后手动填写。不要把 `.env`、数据目录或投递记录上传 GitHub。
+| 需要做什么 | 说明 |
+|---|---|
+| 让 Codex 配置个人提醒 | [Codex 部署说明](CODEX_SETUP.md) |
+| 了解每轮如何检查和投递 | [Codex 每轮执行说明](docs/CODEX_MONITOR.md) |
+| 查看真实验证范围 | [2026-10-24 实测记录](docs/VERIFICATION.md) |
+| 自行配置 Python / SMTP / Docker | [高级手动部署与已知问题](docs/ADVANCED_SETUP.md) |
+| 排查没有邮件、来源失败、时间问题 | [故障排查](docs/troubleshooting.md) |
+| 查看实现与开发检查 | [设计与边界](docs/design.md) · [变更记录](CHANGELOG.md) |
 
-**3. 检查配置与来源**
+这是社区项目，与 OpenAI、X、Tibo 没有官方关联。设计灵感来自 [Tibo Reset Reminder Skill](https://github.com/orange90/tibo_reset_reminder_skill)；本仓库的运行时与状态存储独立实现。
 
-```bash
-python -m tibo_mailer doctor
-python -m tibo_mailer check --dry-run
-```
-
-`doctor` 只检查配置格式。`--dry-run` 会实时读取 X、生成邮件内容，不发送邮件、不标记帖子已读。它仍会在私有数据目录记录诊断。
-
-**4. 主动发一封测试邮件**
-
-```bash
-python -m tibo_mailer test-email
-```
-
-这一步会真实发出一封带 `[演示]` 的邮件。确认收件箱或垃圾邮件文件夹中收到后再启动监测。
-
-**5. 每小时自动运行**
-
-```bash
-python -m tibo_mailer run
-```
-
-保持程序和电脑运行。默认间隔 3600 秒，在 `.env` 中修改 `CHECK_INTERVAL_SECONDS` 可调整，最短支持 300 秒。首次有效扫描会发送一次汇总，历史帖子合并处理；汇总发送成功后才完成初始化。之后只提醒新消息或正文修改后的新版本。
-
-如需由操作系统任务计划程序调用，使用 `python -m tibo_mailer check`，并使用同一个工作目录、配置文件和数据目录。禁止多个实例共享同一个目录同时运行，程序也会主动拒绝重叠执行。
-
-## 两种判断方式
-
-| 模式 | 配置 | 行为 |
-|---|---|---|
-| 默认 `rules` | `ANALYSIS_MODE=rules` | 无需模型接口。只接受明确表述，保守匹配，可能漏掉复杂隐喻或长回复链 |
-| 可选 `llm` | 填写以下配置 | 由模型整理中文摘要并判断语义，再核验原文证据；需要独立的模型 API 凭据，费用按服务商规则计算 |
-
-```dotenv
-ANALYSIS_MODE=llm
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_MODEL=填写你的可用模型名称
-LLM_API_KEY=填写你自己的API密钥
-```
-
-使用支持 `POST /chat/completions` 与 JSON 输出的 OpenAI 兼容服务。没有默认模型，不会自动选择套餐或购买额度。只有相关的公开帖子会发给模型，邮箱与 SMTP 配置不会进入模型请求。服务未返回有效证据时会保留帖子等待下次重试。
-
-接口实现参考 [OpenAI Chat Completions 文档](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create)。不同兼容服务的支持程度需要自行验证。
-
-## 在服务器上长期运行
-
-有 Docker Compose 时，先复制并填写 `.env`：
-
-```bash
-docker compose up -d --build
-docker compose logs --tail 50 mailer
-docker compose exec mailer python -m tibo_mailer status
-```
-
-状态存储在命名卷 `mailer-data`，容器重启后保留。不要删除这个卷，否则会丢失初始化、去重与待发记录。Docker 配置已提供；实际构建验证范围见版本发布说明。
-
-### GitHub Actions 的作用
-
-本仓库提供自动测试和手动 `Check public X source (no email)` 工作流，用于验证 GitHub 运行器能否读取 X。**没有提供无状态的云端定时发信任务**：临时运行器丢失投递状态会造成重复邮件。
-
-第一版长期监测请使用本地程序或带持久卷的服务器。GitHub 云端来源检查通过，也不代表所有地区或后续每次请求都能访问 X。Actions 定时任务可能延迟，公开仓库长期没有活动也可能被自动停用，参见 [GitHub 官方说明](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)。
-
-## 来源与时间规则
-
-- 只接受 `@thsottiaux` 本人的原帖和可核验的本人同帖补充，忽略普通转帖、引用内其他作者的正文。
-- 只提醒明确涉及 Codex 额度并带日期、相对时间、周期或已完成确认的消息。模糊的 `soon`、猜测、其他产品、API 限流和付费 credits 不提醒。
-- 公开匿名页面只能展示部分历史，首次汇总明确报告可核验范围，不声称完整七天统计；预告不计为已完成事件。
-- `PST` 按 UTC−8、`PDT` 按 UTC−7，`PT` 按事件当日洛杉矶的 IANA 时区换算。PST/PDT 与当日当地时区冲突时同时说明两种解释。
-- `tomorrow` 以原帖可核验的发布时间和明确时区为基准，不随检查日期顺延。未知日期或时区时保留原文，不猜测。
-- 来源读取失败不会被记成“没有公告”，也不会推进帖子去重状态。正文截断或相关原帖读取失败的证据延后重试。
-
-## 投递状态
-
-```bash
-python -m tibo_mailer status
-```
-
-数据保存在 `.tibo-mailer/state.sqlite3`（可通过 `TIBO_DATA_DIR` 更改），包含去重信息、邮件内容、SMTP 接受回执状态及稳定的 `Message-ID`。**此目录是私有运行数据**，不属于开源源码。
-
-- `pending`：明确未完成，后续检查优先重试。
-- `sent`：SMTP 服务端接受邮件；最终是否进入收件箱仍由邮件系统决定。
-- `unknown`：发送阶段断线或进程退出，可能已经发出。程序停止自动重发这封邮件。
-
-遇到 `unknown`，先按 `status` 显示的 `Message-ID`、主题和原帖在发信账号中核对，再执行：
-
-```bash
-python -m tibo_mailer resolve DELIVERY_ID --sent
-# 确认没有发出后，才执行：
-python -m tibo_mailer resolve DELIVERY_ID --retry
-```
-
-重试会使用原 `Message-ID`，但邮件系统不保证据此去重，因此不能在结果未知时盲目重发。
-
-## 开发与验证
-
-```bash
-python -m unittest discover -s tests -v
-python -m tibo_mailer preview --output docs/email-preview.html
-```
-
-自动测试覆盖作者核验、引用隔离、时间转换、夏令时边界、消息合并、初始化、版本去重、失败重试和发信歧义。真实邮件登录、特定模型及地区网络条件，需要使用者用自己的配置验证。
-
-这是社区项目，与 OpenAI、X、Tibo 没有官方关联。公开公告不保证你的个人账户额度已到账。X 页面结构或访问条件可能变化，详见 [故障排查](docs/troubleshooting.md)。
-
-设计灵感来自 [Tibo Reset Reminder Skill](https://github.com/orange90/tibo_reset_reminder_skill)。本仓库的运行时与状态存储独立实现，不导入该技能，不包含其源码。独立 SMTP 路线不依赖 Codex、公共 Feed 或 Gmail 连接器；Codex 辅助路线复用宿主的判断、邮箱连接和定时能力。
-
-## 许可证
-
-[MIT](LICENSE)。欢迎通过 Issue 报告问题；请删除邮箱、授权码、密钥和私有数据后再提交日志。
+[MIT 许可证](LICENSE)。报告问题前请删除邮箱、授权码、密钥和私有数据。

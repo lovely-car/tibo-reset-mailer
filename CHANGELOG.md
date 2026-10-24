@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+### Documentation — 2026-10-24
+
+- Make the Codex personal-reminder prompt the main entry point in Chinese and English.
+- Move manual Python/SMTP, optional model API and Docker instructions to the advanced guide, with known standalone-route issues.
+- Add a sanitized Windows Codex verification record: fresh installation, live X reading, connected Gmail delivery, user-confirmed QQ receipt and one actual scheduled recheck without duplicate delivery.
+- Route troubleshooting by setup method and update the v0.2.0-beta.1 release notes with dated verification scope. The runtime version remains Beta.
+
 ## 0.2.0-beta.1
 
 - Copyable Codex deployment prompt, AGENTS.md routing and a complete personal-monitor setup guide.
