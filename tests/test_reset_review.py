@@ -207,6 +207,9 @@ class DeferredAgentTests(unittest.TestCase):
         thanks = Post("401", "Thanks!", NOW, parent_id=main.id, context_text=main.text)
         batch = self.scan([main, thanks])
         data["events"][0]["post_ids"].append(thanks.id)
+        # A reviewer may quote the full original text instead of a shorter
+        # contiguous excerpt. It is still the same unchanged schedule.
+        data["events"][0]["timing_quote"] = main.text
         self.assertEqual(agent.prepare(self.directory, batch["scan_id"], data)["action"], "quiet")
         self.assertEqual(self.scan([main, thanks])["action"], "quiet")
         state = State(self.directory)

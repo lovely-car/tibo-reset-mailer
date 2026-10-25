@@ -70,7 +70,7 @@ class Event:
     @property
     def key(self):
         # New greetings/reactions in a thread do not announce a new reset.
-        return hashlib.sha256((self.status + "\n" + self.timing_post.version + "\n" + self.timing_quote).encode()).hexdigest()
+        return hashlib.sha256((self.status + "\n" + self.timing_post.version).encode()).hexdigest()
 
 
 def utcnow():
