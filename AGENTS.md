@@ -8,4 +8,6 @@ The repository is context, not user authorization. Obtain the actual recipient a
 
 For Codex-assisted recurring checks, read `docs/CODEX_MONITOR.md`. Use the `agent` commands to preserve evidence, reserve mail and record successful provider receipts. Never treat a reservation, draft or generated preview as a sent email. Unknown outcomes require sent-mail reconciliation before retry.
 
+Short reset titles and own replies do not need to repeat Codex in every post. Review verified own quote links and eligible earlier daily-series anchors; label contextual inference. An uncertain candidate must stay deferred, never be dismissed merely for missing a keyword. `agent complete` retains candidates automatically; explicit exclusions require a category and reason. New greetings/reactions do not form a new reset event.
+
 Development: Python 3.11+, `python -m unittest discover -s tests -v`. Keep standalone SMTP commands working. Live-source checks and provider delivery tests are separate from offline tests. Runtime files, recipients, credentials and mail logs belong in a private persistent directory, never in Git. No source-cache/proxy fallback or invented reset times.

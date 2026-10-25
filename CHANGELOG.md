@@ -1,6 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.2.1-beta.1 — 2026-10-25
+
+- Keep uncertain reset candidates in a durable review queue independently of seen/delivery state; recheck changed own-thread evidence and previously filtered, undelivered candidates.
+- Parse quote posts using the outer author's own timestamp permalink; preserve verified own quote links without mixing the quoted ID/time with the new body.
+- Join own quote completion with its earlier reset thread; accept `codexing`/`It is all propagated` only with substantiated reset context. Short daily-series announcements require a recent verified Codex-reset anchor and label contextual inference.
+- Convert `By midnight PST/PDT/PT` with publication-date anchoring and literal PST/PDT ambiguity notes.
+- Deduplicate event claims by actionable timing/completion rather than unrelated new replies; retain unknown-delivery reconciliation and provider receipts.
+- Fix standalone warning-only onboarding and unrelated-reply duplicate mail; add regression coverage and upgrade guidance. Remains Beta.
 
 ### Documentation — 2026-10-24
 
