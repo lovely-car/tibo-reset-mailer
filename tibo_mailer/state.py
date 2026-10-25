@@ -55,6 +55,15 @@ class State:
             versions TEXT NOT NULL, onboarding INTEGER NOT NULL, at TEXT NOT NULL,
             attempts INTEGER NOT NULL DEFAULT 0, error TEXT NOT NULL DEFAULT '');
           CREATE TABLE IF NOT EXISTS receipts (delivery_id TEXT PRIMARY KEY, provider_id TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS observations (post_id TEXT PRIMARY KEY, post TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS reviews (
+            version TEXT PRIMARY KEY, fingerprint TEXT NOT NULL, status TEXT NOT NULL,
+            reason TEXT NOT NULL, post TEXT NOT NULL, at TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS review_audit (
+            id INTEGER PRIMARY KEY, version TEXT NOT NULL, status TEXT NOT NULL,
+            reason TEXT NOT NULL, at TEXT NOT NULL);
+          CREATE TABLE IF NOT EXISTS processed_scans (id TEXT PRIMARY KEY);
+          CREATE TABLE IF NOT EXISTS event_claims (event_key TEXT PRIMARY KEY, delivery_id TEXT NOT NULL);
         """)
         # A crash during SMTP can leave the outcome ambiguous. Never auto-resend.
         with self.db:
@@ -74,12 +83,24 @@ class State:
         with self.db:
             self.db.executemany("INSERT OR IGNORE INTO seen VALUES (?,?)", [(v, utcnow().isoformat()) for v in versions])
 
-    def reserve(self, delivery_id, payload, versions, onboarding=False):
+    def reserve(self, delivery_id, payload, versions, onboarding=False, event_keys=()):
         with self.db:
+            if any(self.db.execute("SELECT 1 FROM event_claims WHERE event_key=?", (key,)).fetchone() for key in event_keys):
+                return False
             cursor = self.db.execute("INSERT OR IGNORE INTO deliveries(id,status,payload,versions,onboarding,at) VALUES (?,'pending',?,?,?,?)",
                                      (delivery_id, json.dumps(payload, ensure_ascii=False), json.dumps(versions), int(onboarding), utcnow().isoformat()))
             self.db.executemany("INSERT OR IGNORE INTO seen VALUES (?,?)", [(v, utcnow().isoformat()) for v in versions])
+            if cursor.rowcount == 1:
+                self.db.executemany("INSERT INTO event_claims VALUES (?,?)", [(key, delivery_id) for key in event_keys])
         return cursor.rowcount == 1
+
+    def event_claimed(self, event):
+        if self.db.execute("SELECT 1 FROM event_claims WHERE event_key=?", (event.key,)).fetchone():
+            return True
+        # Upgrade compatibility: legacy deliveries had no event key. Only an
+        # actual quoted schedule/completion in that mail substantiates a match.
+        return any(event.timing_post.version in d["versions"] and event.timing_quote in d["payload"].get("text", "")
+                   for d in self.deliveries({"pending", "unknown", "sent"}))
 
     def deliveries(self, statuses=None):
         rows = self.db.execute("SELECT * FROM deliveries ORDER BY at").fetchall()
@@ -117,6 +138,8 @@ class State:
     def status(self):
         health = self.db.execute("SELECT value FROM meta WHERE key='health'").fetchone()
         return {"initialized": self.initialized,
+                "deferred_reviews": self.db.execute("SELECT COUNT(*) FROM reviews WHERE status='deferred'").fetchone()[0],
+                "review_decisions": self.db.execute("SELECT COUNT(*) FROM review_audit").fetchone()[0],
                 "processed_versions": self.db.execute("SELECT COUNT(*) FROM seen").fetchone()[0],
                 "deliveries": [{"id": d["id"], "status": d["status"], "message_id": d["payload"]["message_id"],
                                 "attempts": d["attempts"], "error": d["error"],

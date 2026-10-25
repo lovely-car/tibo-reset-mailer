@@ -69,6 +69,8 @@ def build_mail(events: list[Event], posts: list[Post], now=None, onboarding=Fals
         bj, la = first_time.instant.astimezone(BEIJING), first_time.instant.astimezone(PACIFIC)
         suffix = "前" if first_time.deadline else ""
         subject = f"Codex 额度重置提醒｜北京时间 {bj:%m/%d %H:%M}{suffix}｜美国太平洋 {la:%m/%d %H:%M} {la.tzname()}{suffix}"
+    elif events and all(event.status == "completed" for event in events):
+        subject = "Codex 额度重置提醒｜已完成确认（具体重置时刻未公布）"
     if onboarding:
         subject = "首次汇总｜" + subject
     if demo:

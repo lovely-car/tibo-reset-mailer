@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "tibo-reset-mailer"
-version = "0.2.0b1"
-description = "Self-hosted Chinese email alerts for Tibo's concrete Codex reset announcements"
+version = "0.2.1b1"
+description = "Codex-assisted personal email alerts for Tibo's Codex quota-reset announcements"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "MIT"}

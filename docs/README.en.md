@@ -4,7 +4,7 @@
 
 Give this repository link and your recipient address to your own Codex. It installs the project, checks the live source, and configures hourly checks of [@thsottiaux](https://x.com/thsottiaux), including relevant replies by the same author. Only new, concrete reset information triggers an alert.
 
-**v0.2.0-beta.1 · Codex-assisted personal setup · MIT**
+**v0.2.1-beta.1 · Codex-assisted personal setup · MIT**
 
 [中文](../README.md) · [Verification record](VERIFICATION.md) · [Troubleshooting](troubleshooting.md) · [Advanced manual deployment](ADVANCED_SETUP.md)
 
@@ -24,6 +24,8 @@ A source failure must not count as no announcement. Report the live-source resul
 ```
 
 With working connected mail, this route requires neither manual SMTP settings nor a separate model API key. Your Codex host must support networked local execution, sending mail and scheduling. Local reminders require the computer online and the desktop host running; Codex checks those capabilities during setup.
+
+This release fixes missed short announcements: verified own replies, quote links and recent daily-series context can substantiate a reset without repeating “Codex” in every post. Uncertain candidates remain deferred instead of disappearing behind a seen flag; unrelated new replies do not generate a second alert for the same schedule. See the [release notes](release-v0.2.1-beta.1.md). Existing users should update the same installation and scheduler instructions, preserving their private data directory.
 
 ## Email example
 
@@ -50,7 +52,7 @@ This remains a **Beta**. One device and one scheduled recheck do not establish l
 ## More information
 
 - [Codex setup guide](../CODEX_SETUP.md) and [recurring-check instructions](CODEX_MONITOR.md).
-- [Advanced manual Python/SMTP, model API and Docker setup](ADVANCED_SETUP.md), including known issues in that separate route.
+- [Advanced manual Python/SMTP, model API and Docker setup](ADVANCED_SETUP.md), including its separate verification scope.
 - [Troubleshooting](troubleshooting.md), [design](design.md) and [changelog](../CHANGELOG.md).
 
 Community project with no official affiliation to OpenAI, X or Tibo. Inspired by the [Tibo Reset Reminder Skill](https://github.com/orange90/tibo_reset_reminder_skill); the runtime and state implementation are independent.

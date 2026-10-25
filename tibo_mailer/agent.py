@@ -10,13 +10,14 @@ import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from .analysis import COMPLETE, candidate
+from .analysis import COMPLETE, candidate, codex_context, group_key, inventory, series_anchors
 from .config import address
 from .mail import build_mail
 from .models import Event, Post, utcnow
 from .source import fetch_posts
 from .state import State, process_lock
 from .timing import TIME_SIGNAL
+from . import review as review_store
 
 
 def write_private(path, value):
@@ -28,8 +29,7 @@ def write_private(path, value):
 
 
 def post_from_dict(value):
-    return Post(value["id"], value["text"], datetime.fromisoformat(value["created_at"]),
-                value["author"], value.get("parent_id"), value.get("context_text", ""), value.get("truncated", False))
+    return Post.from_dict(value)
 
 
 def init(directory: Path, recipient: str):
@@ -44,7 +44,7 @@ def init(directory: Path, recipient: str):
     return {"configured": True, "data_dir": str(directory.resolve()), "sends_email": False}
 
 
-def scan(directory: Path, fetcher=fetch_posts):
+def scan(directory: Path, fetcher=None):
     with process_lock(directory):
         state = State(directory)
         try:
@@ -52,20 +52,20 @@ def scan(directory: Path, fetcher=fetch_posts):
             if unresolved:
                 return {"ok": True, "action": "resume_delivery", "deliveries": unresolved}
             try:
-                result = fetcher()
+                result = fetcher() if fetcher else fetch_posts(retry_urls=review_store.retry_urls(state))
             except Exception as exc:
                 state.health({"checked_at": utcnow().isoformat(), "source_ok": False, "error_type": type(exc).__name__})
                 raise
-            selected = result.posts[:20] if state.initialized else result.posts
-            if not selected and result.warnings:
+            if not result.posts and result.warnings:
+                state.health({"checked_at": result.checked_at.isoformat(), "source_ok": False,
+                              "warnings": result.warnings, "error_type": "IncompleteEvidence"})
                 raise RuntimeError("No complete evidence is available; retry later")
-            fresh = [p for p in selected if not state.seen(p.version)]
-            roots = {p.root_id for p in fresh}
-            evidence = [p for p in selected if p.root_id in roots]
+            fresh, evidence, reasons, fingerprints = review_store.collect(state, result)
             batch = {"scan_id": uuid.uuid4().hex, "checked_at": result.checked_at.isoformat(),
                      "initialized": state.initialized, "seven_day_history_complete": False,
                      "warnings": result.warnings, "new_versions": [p.version for p in fresh],
-                     "posts": [p.public_dict() for p in evidence]}
+                     "posts": [p.public_dict() for p in evidence], "review_reasons": reasons,
+                     "review_fingerprints": fingerprints}
             write_private(directory / "agent-scan.json", batch)
             state.health({"checked_at": result.checked_at.isoformat(), "source_ok": True,
                           "new_versions": len(fresh), "warnings": result.warnings})
@@ -85,7 +85,7 @@ def read_batch(directory, scan_id, state):
         raise ValueError("Resolve the existing delivery before processing another batch")
     if state.initialized != batch["initialized"]:
         raise ValueError("Initialization changed; perform a fresh scan")
-    if any(state.seen(v) for v in batch["new_versions"]):
+    if state.db.execute("SELECT 1 FROM processed_scans WHERE id=?", (scan_id,)).fetchone():
         raise ValueError("This scan has already been processed")
     return batch
 
@@ -108,13 +108,13 @@ def prepare(directory: Path, scan_id: str, review: dict):
                 if not isinstance(ids, list) or not ids or not all(isinstance(i, str) and i in by_id for i in ids):
                     raise ValueError("Event references posts outside the verified scan")
                 chosen = [by_id[i] for i in dict.fromkeys(ids)]
-                roots = {p.root_id for p in chosen}
+                roots = {group_key(p, inventory(posts)) for p in chosen}
                 if len(roots) != 1 or roots & used_roots:
                     raise ValueError("Merge the same thread; keep unrelated threads separate")
                 used_roots |= roots
                 timing_post = by_id.get(item.get("timing_post_id"))
                 quote, status, summary = item.get("timing_quote"), item.get("status"), item.get("summary_zh")
-                if (timing_post not in chosen or not candidate(timing_post) or not isinstance(quote, str)
+                if (timing_post not in chosen or not candidate(timing_post, chosen, posts) or not isinstance(quote, str)
                         or not quote or quote not in timing_post.text or status not in {"scheduled", "completed"}
                         or not isinstance(summary, str) or not summary or len(summary) > 1000):
                     raise ValueError("Event failed author, Codex context, source quote or summary validation")
@@ -122,30 +122,48 @@ def prepare(directory: Path, scan_id: str, review: dict):
                     raise ValueError("The source quote does not substantiate the claimed timing or completion")
                 if not any(p.version in batch["new_versions"] for p in chosen):
                     raise ValueError("An alert must include an unprocessed post version")
-                events.append(Event(chosen, status, summary, quote, timing_post))
+                anchors = series_anchors(chosen, posts)
+                if anchors and not codex_context("\n".join(p.text + "\n" + p.context_text for p in chosen)):
+                    summary += " 结合已核验的此前 Codex 重置系列判断；本次短帖未重复写出 Codex。"
+                events.append(Event(list({p.id: p for p in chosen + anchors}.values()), status, summary, quote, timing_post))
             if not events and state.initialized:
                 raise ValueError("No matching events: use agent complete instead")
+            matched = {v for event in events for v in event.versions}
+            results = review_store.outcomes(batch, matched, review)
+            events = [event for event in events if not state.event_claimed(event)]
+            if not events and state.initialized:
+                deferred = review_store.finish(state, batch, results)
+                return {"action": "quiet", "already_notified": True, "deferred": deferred}
             config = json.loads((directory / "agent-config.json").read_text(encoding="utf-8"))
             payload = build_mail(events, posts, now=utcnow(), onboarding=not state.initialized)
             if len(events) > 1:
                 payload["subject"] = ("首次汇总｜" if not state.initialized else "") + "Codex 额度重置提醒｜Tibo 更新（多组消息）"
             payload["to"] = address(config["recipient"])
+            deferred = sum(status == "deferred" for _, status, _ in results)
+            if deferred:
+                note = f"另有 {deferred} 条疑似消息保留待复查，不计作已确认重置。"
+                payload["text"] += "\n" + note
+                payload["html"] = payload["html"].replace("</body>", "<p>" + note + "</p></body>")
             identity = "agent-" + scan_id
-            state.reserve(identity, payload, batch["new_versions"], onboarding=not state.initialized)
-            return {"delivery_id": identity, "status": "pending", "payload": payload}
+            resolved = [p.version for p, status, _ in results if status != "deferred"]
+            if not state.reserve(identity, payload, resolved, onboarding=not state.initialized, event_keys=[event.key for event in events]):
+                raise ValueError("Event already reserved; reconcile the existing delivery")
+            review_store.finish(state, batch, results)
+            return {"delivery_id": identity, "status": "pending", "payload": payload, "deferred": deferred}
         finally:
             state.close()
 
 
-def complete(directory: Path, scan_id: str):
+def complete(directory: Path, scan_id: str, review=None):
     with process_lock(directory):
         state = State(directory)
         try:
             batch = read_batch(directory, scan_id, state)
             if not state.initialized:
                 raise ValueError("First scan requires a delivered summary, including a zero-match summary")
-            state.mark_seen(batch["new_versions"])
-            return {"processed": len(batch["new_versions"]), "action": "quiet"}
+            results = review_store.outcomes(batch, review=review)
+            deferred = review_store.finish(state, batch, results)
+            return {"processed": len(results) - deferred, "deferred": deferred, "action": "quiet"}
         finally:
             state.close()
 
@@ -190,6 +208,7 @@ def add_arguments(sub):
     review.add_argument("--input", type=Path, required=True)
     done = commands.add_parser("complete")
     done.add_argument("--scan-id", required=True)
+    done.add_argument("--input", type=Path, help="Optional deferred/excluded decisions with reasons")
     for name in ("begin", "confirm", "failed"):
         action = commands.add_parser(name)
         action.add_argument("delivery_id")
@@ -210,7 +229,7 @@ def run(args):
     if command == "prepare":
         return prepare(directory, args.scan_id, json.loads(args.input.read_text(encoding="utf-8-sig")))
     if command == "complete":
-        return complete(directory, args.scan_id)
+        return complete(directory, args.scan_id, json.loads(args.input.read_text(encoding="utf-8-sig")) if args.input else None)
     if command == "status":
         with process_lock(directory):
             state = State(directory)

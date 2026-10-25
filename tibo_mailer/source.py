@@ -69,30 +69,33 @@ class Tree(HTMLParser):
 
 def parse_posts(html: str, page_url: str) -> list[Post]:
     root = Tree(html).root
-    posts = {}
-    for article in (n for n in root.walk() if n.tag == "article"):
+
+    def parse_article(article):
         ancestor = article.parent
-        if any(n.tag == "article" for n in ancestors(ancestor)):
-            continue
         nodes = list(article.walk(skip_articles=True))
         authors = [n.attrs.get("href", "") for n in nodes if n.tag == "a"
                    and re.fullmatch(r"/[A-Za-z0-9_]+", n.attrs.get("href", ""))]
         if not authors or authors[0].lower() != f"/{ACCOUNT}":
-            continue
+            return None
         if any(n.attrs.get("data-testid") == "socialContext" and
                re.search(r"repost|retweet|转帖|转推", n.text(), re.I) for n in nodes):
-            continue
-        path = next((n.attrs["data-href"] for n in ancestors(ancestor)
-                     if STATUS.fullmatch(n.attrs.get("data-href", ""))), None)
+            return None
+        path = None
+        for node in ancestors(ancestor):
+            if node.tag == "article":
+                break
+            if STATUS.fullmatch(node.attrs.get("data-href", "")):
+                path = node.attrs["data-href"]
+                break
         links = [n for n in nodes if n.tag == "a" and STATUS.fullmatch(n.attrs.get("href", ""))]
-        path = path or (links[0].attrs["href"] if links else None)
         body = next((n for n in nodes if n.attrs.get("data-testid") == "tweetText"), None)
         if body is None:
             body = next((n for n in nodes if n.tag == "div" and n.attrs.get("dir") == "auto"), None)
-        if path is None or body is None or not body.text().strip():
-            continue
-        created = None
-        for link in (n for n in links if n.attrs["href"] == path):
+        if body is None or not body.text().strip():
+            return None
+        dated_links = []
+        for link in links:
+            created = None
             for time in (n for n in link.walk() if n.tag == "time"):
                 try:
                     dt = datetime.fromisoformat(time.attrs.get("datetime", "").replace("Z", "+00:00"))
@@ -110,13 +113,27 @@ def parse_posts(html: str, page_url: str) -> list[Post]:
                         created = datetime.fromtimestamp(int(match[1]) / 1000, timezone.utc)
                         break
             if created:
-                break
-        if not created:
-            continue
+                dated_links.append((link.attrs["href"], created))
+        path = path or (dated_links[0][0] if dated_links else None)
+        created = next((dt for href, dt in dated_links if href == path), None)
+        if not path or not created:
+            return None
         post_id = STATUS.fullmatch(path)[1]
+        quoted = next((n for n in article.walk() if n.tag == "article"), None)
+        quoted_post = parse_article(quoted) if quoted else None
         post = Post(post_id, body.text().strip(), created, truncated=any(
             n.tag in {"button", "a"} and n.text().strip().lower() in {"show more", "显示更多"}
-            for n in nodes))
+            for n in nodes), quoted_post=quoted_post)
+        return post
+
+    posts = {}
+    for article in (n for n in root.walk() if n.tag == "article"):
+        if any(n.tag == "article" for n in ancestors(article.parent)):
+            continue
+        post = parse_article(article)
+        if post is None:
+            continue
+        post_id = post.id
         if post_id not in posts or len(post.text) > len(posts[post_id].text):
             posts[post_id] = post
     match = re.fullmatch(rf"{re.escape(PROFILE)}/status/(\d+)", page_url)
@@ -149,29 +166,33 @@ def fetch_html(url: str):
         return body.decode("utf-8")
 
 
-def fetch_posts(now=None) -> FetchResult:
+def fetch_posts(now=None, retry_urls=()) -> FetchResult:
     now = now or utcnow()
     profile = parse_posts(fetch_html(PROFILE), PROFILE)
     if not profile:
         raise RuntimeError("X returned no verifiable author/text/timestamp; this is a source failure")
     posts = {p.id: p for p in profile}
-    relevant = [p for p in profile if p.truncated or re.search(
-        r"reset|quota|usage|allowance|limit|capacity", p.text, re.I)][:4]
+    relevant = [p for p in profile if p.truncated or p.quoted_post or re.search(
+        r"reset|quota|usage|allowance|limit|capacity|propagat|codexing", p.text, re.I)][:4]
+    targets = {p.url: p.id for p in relevant}
+    for url in list(dict.fromkeys(retry_urls))[:4]:
+        if re.fullmatch(rf"{re.escape(PROFILE)}/status/\d+", url):
+            targets.setdefault(url, url.rsplit("/", 1)[1])
     warnings, unavailable = [], set()
     with ThreadPoolExecutor(max_workers=2) as pool:
-        futures = {pool.submit(fetch_html, p.url): p for p in relevant}
+        futures = {pool.submit(fetch_html, url): (url, pid) for url, pid in targets.items()}
         for future in as_completed(futures):
-            parent = futures[future]
+            url, parent_id = futures[future]
             try:
-                thread = parse_posts(future.result(), parent.url)
-                if not any(p.id == parent.id for p in thread):
+                thread = parse_posts(future.result(), url)
+                if not any(p.id == parent_id for p in thread):
                     raise RuntimeError("Original post missing from its thread")
                 for post in thread:
                     if post.id not in posts or len(post.text) >= len(posts[post.id].text):
                         posts[post.id] = post
             except Exception:
-                warnings.append(f"Thread {parent.id} unavailable; its evidence will be retried")
-                unavailable.add(parent.id)
+                warnings.append(f"Thread {parent_id} unavailable; its evidence will be retried")
+                unavailable.add(parent_id)
     cutoff = now - timedelta(days=7)
     recent = [p for p in posts.values() if cutoff <= p.created_at <= now + timedelta(minutes=5)
               and p.root_id not in unavailable and p.id not in unavailable and not p.truncated]
